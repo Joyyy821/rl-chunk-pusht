@@ -1,0 +1,49 @@
+[project]
+name = "rl-chunk-pusht"
+version = "0.1.0"
+description = "Q-chunking reinforcement learning experiments for Push-T action parameterizations."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "flax>=0.10.5,<0.11",
+    "gym-pusht>=0.1.6",
+    "gymnasium>=1.1.1,<2",
+    "imageio>=2.37",
+    "imageio-ffmpeg>=0.6",
+    "jax>=0.6.0,<0.7",
+    "jaxlib>=0.6.0,<0.7",
+    "matplotlib>=3.9",
+    "numpy>=2.0,<3",
+    "optax>=0.2.4,<0.3",
+    "pillow>=11",
+    "pymunk<7",
+    "tensorflow-probability>=0.25,<0.26",
+    "tqdm>=4.67",
+    "tyro>=1.0",
+    "wandb>=0.19",
+    "zarr>=3.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.14",
+]
+
+[project.optional-dependencies]
+cuda12 = [
+    "jax[cuda12]>=0.6.0,<0.7",
+]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
