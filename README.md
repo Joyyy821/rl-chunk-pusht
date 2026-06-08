@@ -89,6 +89,8 @@ uv run python -m rl_chunk_pusht.train \
 
 Logs, configs, CSVs, and checkpoints are written under `exp/`.
 
+A note to myself: add `env -u LD_LIBRARY_PATH` before the `uv run python` command to unset `LD_LIBRARY_PATH` and avoid CUDA conflicts in JAX on my local machine.
+
 ## Visualization
 
 Overlay multiple stochastic rollouts from the same reset state:

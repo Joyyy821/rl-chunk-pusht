@@ -1,0 +1,112 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: yjiao-rl-chunk-pusht-position-c8
+  labels:
+    app: rl-chunk-pusht
+    role: train
+    env-mode: position-target
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: rl-chunk-pusht
+        role: train
+        env-mode: position-target
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 100
+        fsGroup: 100
+        fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        - name: fix-pvc-permissions
+          image: docker.io/library/busybox:1.36
+          command:
+            - sh
+            - -c
+          args:
+            - |
+              set -eu
+              mkdir -p /workspace/src /workspace/outputs /workspace/cache /workspace/home /workspace/tmp
+              owner="$(stat -c '%u:%g' /workspace || true)"
+              if [ "${owner}" != "1000:100" ]; then
+                chown -R 1000:100 /workspace
+              else
+                chown -R 1000:100 /workspace/src /workspace/outputs /workspace/cache /workspace/home /workspace/tmp
+              fi
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+      containers:
+        - name: trainer
+          image: gitlab-registry.nrp-nautilus.io/nrp/scientific-images/python:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -lc
+          args:
+            - /workspace/src/rl-chunk-pusht/nautilus/scripts/train.sh
+          env:
+            - name: HOME
+              value: /workspace/home
+            - name: XDG_CACHE_HOME
+              value: /workspace/cache
+            - name: UV_CACHE_DIR
+              value: /workspace/cache/uv
+            - name: TMPDIR
+              value: /workspace/tmp
+            - name: MPLCONFIGDIR
+              value: /workspace/cache/matplotlib
+            - name: WANDB_DIR
+              value: /workspace/cache/wandb
+            - name: XLA_PYTHON_CLIENT_PREALLOCATE
+              value: "false"
+            - name: HWLOC_HIDE_ERRORS
+              value: "2"
+            - name: REPO_DIR
+              value: /workspace/src/rl-chunk-pusht
+            - name: OUTPUT_DIR
+              value: /workspace/outputs/train
+            - name: ENV_MODE
+              value: position_target
+            - name: AGENT
+              value: acfql
+            - name: CHUNK_SIZE
+              value: "8"
+            - name: ACTION_CHUNKING
+              value: "true"
+            - name: SEED
+              value: "0"
+            - name: ONLINE_STEPS
+              value: "1000000"
+            - name: WARMUP_STEPS
+              value: "5000"
+            - name: BATCH_SIZE
+              value: "256"
+            - name: WANDB_MODE
+              value: disabled
+            - name: WANDB_GROUP
+              value: nautilus
+            - name: EXP_NAME
+              value: position-c8-seed0
+          resources:
+            requests:
+              cpu: "4"
+              memory: 16Gi
+            limits:
+              cpu: "8"
+              memory: 32Gi
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+      volumes:
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: yjiao-rl-chunk-pusht-pvc
