@@ -30,12 +30,13 @@ spec:
           args:
             - |
               set -eu
-              mkdir -p /workspace/src /workspace/outputs /workspace/cache /workspace/home /workspace/tmp
-              owner="$(stat -c '%u:%g' /workspace || true)"
+              project_dir=/workspace/rl-chunk-pusht
+              mkdir -p "${project_dir}/src" "${project_dir}/outputs" "${project_dir}/cache" "${project_dir}/home" "${project_dir}/tmp"
+              owner="$(stat -c '%u:%g' "${project_dir}" || true)"
               if [ "${owner}" != "1000:100" ]; then
-                chown -R 1000:100 /workspace
+                chown -R 1000:100 "${project_dir}"
               else
-                chown -R 1000:100 /workspace/src /workspace/outputs /workspace/cache /workspace/home /workspace/tmp
+                chown 1000:100 "${project_dir}/src" "${project_dir}/outputs" "${project_dir}/cache" "${project_dir}/home" "${project_dir}/tmp"
               fi
           securityContext:
             runAsUser: 0
@@ -51,28 +52,32 @@ spec:
             - /bin/bash
             - -lc
           args:
-            - /workspace/src/rl-chunk-pusht/nautilus/scripts/train.sh
+            - /workspace/rl-chunk-pusht/src/rl-chunk-pusht/nautilus/scripts/train.sh
           env:
             - name: HOME
-              value: /workspace/home
+              value: /workspace/rl-chunk-pusht/home
+            - name: PROJECT_DIR
+              value: /workspace/rl-chunk-pusht
+            - name: PATH
+              value: /workspace/rl-chunk-pusht/home/.local/bin:/workspace/rl-chunk-pusht/src/rl-chunk-pusht/.venv/bin:/opt/conda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
             - name: XDG_CACHE_HOME
-              value: /workspace/cache
+              value: /workspace/rl-chunk-pusht/cache
             - name: UV_CACHE_DIR
-              value: /workspace/cache/uv
+              value: /workspace/rl-chunk-pusht/cache/uv
             - name: TMPDIR
-              value: /workspace/tmp
+              value: /workspace/rl-chunk-pusht/tmp
             - name: MPLCONFIGDIR
-              value: /workspace/cache/matplotlib
+              value: /workspace/rl-chunk-pusht/cache/matplotlib
             - name: WANDB_DIR
-              value: /workspace/cache/wandb
+              value: /workspace/rl-chunk-pusht/cache/wandb
             - name: XLA_PYTHON_CLIENT_PREALLOCATE
               value: "false"
             - name: HWLOC_HIDE_ERRORS
               value: "2"
             - name: REPO_DIR
-              value: /workspace/src/rl-chunk-pusht
+              value: /workspace/rl-chunk-pusht/src/rl-chunk-pusht
             - name: OUTPUT_DIR
-              value: /workspace/outputs/train
+              value: /workspace/rl-chunk-pusht/outputs/train
             - name: ENV_MODE
               value: velocity_kinematic
             - name: AGENT
@@ -109,4 +114,4 @@ spec:
       volumes:
         - name: workspace
           persistentVolumeClaim:
-            claimName: yjiao-rl-chunk-pusht-pvc
+            claimName: yjiao-west-vol

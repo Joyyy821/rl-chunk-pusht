@@ -1,10 +1,21 @@
 # Nautilus workflow
 
-These files run `rl-chunk-pusht` on Nautilus with the repo and outputs stored on a PVC. Use the dev pod for setup and smoke tests, then delete it before starting a training Job because the default PVC uses `ReadWriteOnce`.
+Note that this readme file is more of a personal note for my job deployment on Nautilus. 
+Any other Nautilus user should change the pod/job/pvc naming and configuration before running `kubectl apply`.
+
+These files run `rl-chunk-pusht` on Nautilus with the repo and outputs stored on a long-lived personal PVC. The default storage name follows the shared namespace convention:
+
+```text
+yjiao-west-vol
+```
+
+The project lives under `/workspace/rl-chunk-pusht` inside that personal volume, so this workflow does not claim the whole PVC root for this repo.
+
+To use central storage instead, change `yjiao-west-vol` to `yjiao-central-vol` in the manifests and use `rook-cephfs-central` in `manifests/pvc.yaml`.
 
 ## Files
 
-- `manifests/pvc.yaml`: 50Gi `rook-ceph-block` PVC.
+- `manifests/pvc.yaml`: 2Ti RWX `rook-cephfs` personal PVC named `yjiao-west-vol`.
 - `manifests/dev-pod.yaml`: interactive one-GPU pod mounted at `/workspace`.
 - `manifests/train-job-position-c8.yaml`: finite Job for `position_target`, `acfql`, chunk size 8.
 - `manifests/train-job-velocity-c8.yaml`: finite Job for `velocity_kinematic`, `acfql`, chunk size 8.
@@ -25,24 +36,35 @@ securityContext:
   fsGroupChangePolicy: OnRootMismatch
 ```
 
-Each pod also has a root `initContainer` that creates:
+Each pod also has a root `initContainer` that creates project-local directories:
 
 ```text
-/workspace/src
-/workspace/outputs
-/workspace/cache
-/workspace/home
-/workspace/tmp
+/workspace/rl-chunk-pusht/src
+/workspace/rl-chunk-pusht/outputs
+/workspace/rl-chunk-pusht/cache
+/workspace/rl-chunk-pusht/home
+/workspace/rl-chunk-pusht/tmp
 ```
 
-and changes ownership to `1000:100`. This avoids the common failure mode where cloning into the PVC fails because the mounted directory is owned by root.
+and changes ownership to `1000:100`. It only touches `/workspace/rl-chunk-pusht`, not the whole personal PVC. This avoids the common failure mode where cloning into the PVC fails because the mounted directory is owned by root.
 
 ## First setup
 
-Run these commands from the repo root on your local machine:
+From the repo root on your local machine, first check whether the personal PVC already exists:
+
+```bash
+kubectl get pvc yjiao-west-vol
+```
+
+If it does not exist, create it:
 
 ```bash
 kubectl apply -f nautilus/manifests/pvc.yaml
+```
+
+Then create the dev pod:
+
+```bash
 kubectl apply -f nautilus/manifests/dev-pod.yaml
 ```
 
@@ -58,10 +80,10 @@ Bootstrap the dev pod:
 bash nautilus/scripts/bootstrap_dev_pod.sh
 ```
 
-The bootstrap script waits for `pod/yjiao-rl-chunk-pusht-dev`, checks that `/workspace` is writable, clones or updates:
+The bootstrap script waits for `pod/yjiao-rl-chunk-pusht-dev`, checks that `/workspace/rl-chunk-pusht` is writable, clones or updates:
 
 ```text
-/workspace/src/rl-chunk-pusht
+/workspace/rl-chunk-pusht/src/rl-chunk-pusht
 ```
 
 and runs:
@@ -82,32 +104,39 @@ Check identity and PVC writes:
 
 ```bash
 id
-touch /workspace/write-test
+touch /workspace/rl-chunk-pusht/write-test
+```
+
+If `uv` is not found in an already-running dev pod, export the PVC-backed install path in that shell:
+
+```bash
+export PROJECT_DIR=/workspace/rl-chunk-pusht
+export PATH="$PROJECT_DIR/home/.local/bin:$PROJECT_DIR/src/rl-chunk-pusht/.venv/bin:$PATH"
 ```
 
 Check JAX GPU:
 
 ```bash
-cd /workspace/src/rl-chunk-pusht
+cd /workspace/rl-chunk-pusht/src/rl-chunk-pusht
 env -u LD_LIBRARY_PATH HWLOC_HIDE_ERRORS=2 uv run python -c "import jax; print(jax.devices()); print(jax.default_backend())"
 ```
 
 Run a short smoke train:
 
 ```bash
-cd /workspace/src/rl-chunk-pusht
+cd /workspace/rl-chunk-pusht/src/rl-chunk-pusht
 bash nautilus/scripts/smoke_train.sh
 ```
 
 Smoke outputs go under:
 
 ```text
-/workspace/outputs/smoke
+/workspace/rl-chunk-pusht/outputs/smoke
 ```
 
 ## Run training Jobs
 
-Delete the dev pod before starting a Job so the `ReadWriteOnce` PVC can attach cleanly:
+The personal PVC is RWX, so it can be mounted by multiple pods. Still delete the dev pod before starting a serious training Job if you want to free the dev pod GPU:
 
 ```bash
 kubectl delete pod yjiao-rl-chunk-pusht-dev
@@ -130,7 +159,7 @@ kubectl logs -f job/yjiao-rl-chunk-pusht-velocity-c8
 Training outputs go under:
 
 ```text
-/workspace/outputs/train
+/workspace/rl-chunk-pusht/outputs/train
 ```
 
 To rerun a Job with the same name, delete it first:
@@ -151,7 +180,7 @@ The Job manifests set environment variables consumed by `scripts/train.sh`. Edit
 - `WANDB_MODE`: default `disabled`.
 - `EXP_NAME`: run name stored in the output directory.
 
-Keep `OUTPUT_DIR` on `/workspace` so logs and checkpoints persist after the pod exits.
+Keep `OUTPUT_DIR` under `/workspace/rl-chunk-pusht` so logs and checkpoints persist after the pod exits without mixing this repo's artifacts with other projects on the same personal PVC.
 
 ## Local validation
 

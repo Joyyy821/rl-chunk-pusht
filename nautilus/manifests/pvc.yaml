@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: yjiao-rl-chunk-pusht-pvc
+  name: yjiao-west-vol
 spec:
-  storageClassName: rook-ceph-block
+  storageClassName: rook-cephfs
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: 50Gi
+      storage: 2Ti

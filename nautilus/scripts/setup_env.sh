@@ -4,17 +4,34 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="${REPO_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 
-export HOME="${HOME:-/workspace/home}"
-export XDG_CACHE_HOME="${XDG_CACHE_HOME:-/workspace/cache}"
-export UV_CACHE_DIR="${UV_CACHE_DIR:-/workspace/cache/uv}"
-export TMPDIR="${TMPDIR:-/workspace/tmp}"
-export MPLCONFIGDIR="${MPLCONFIGDIR:-/workspace/cache/matplotlib}"
-export WANDB_DIR="${WANDB_DIR:-/workspace/cache/wandb}"
+export PROJECT_DIR="${PROJECT_DIR:-/workspace/rl-chunk-pusht}"
+export HOME="${HOME:-${PROJECT_DIR}/home}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-${PROJECT_DIR}/cache}"
+export UV_CACHE_DIR="${UV_CACHE_DIR:-${PROJECT_DIR}/cache/uv}"
+export TMPDIR="${TMPDIR:-${PROJECT_DIR}/tmp}"
+export MPLCONFIGDIR="${MPLCONFIGDIR:-${PROJECT_DIR}/cache/matplotlib}"
+export WANDB_DIR="${WANDB_DIR:-${PROJECT_DIR}/cache/wandb}"
 export XLA_PYTHON_CLIENT_PREALLOCATE="${XLA_PYTHON_CLIENT_PREALLOCATE:-false}"
 export HWLOC_HIDE_ERRORS="${HWLOC_HIDE_ERRORS:-2}"
 export PATH="${HOME}/.local/bin:${PATH}"
 
 mkdir -p "${HOME}" "${XDG_CACHE_HOME}" "${UV_CACHE_DIR}" "${TMPDIR}" "${MPLCONFIGDIR}" "${WANDB_DIR}"
+
+if [[ ! -f "${HOME}/.bashrc" ]] || ! grep -q "rl-chunk-pusht Nautilus environment" "${HOME}/.bashrc"; then
+  cat >> "${HOME}/.bashrc" <<'EOF'
+
+# rl-chunk-pusht Nautilus environment
+export PROJECT_DIR="${PROJECT_DIR:-/workspace/rl-chunk-pusht}"
+export HOME="${HOME:-${PROJECT_DIR}/home}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-${PROJECT_DIR}/cache}"
+export UV_CACHE_DIR="${UV_CACHE_DIR:-${PROJECT_DIR}/cache/uv}"
+export TMPDIR="${TMPDIR:-${PROJECT_DIR}/tmp}"
+export MPLCONFIGDIR="${MPLCONFIGDIR:-${PROJECT_DIR}/cache/matplotlib}"
+export WANDB_DIR="${WANDB_DIR:-${PROJECT_DIR}/cache/wandb}"
+export HWLOC_HIDE_ERRORS="${HWLOC_HIDE_ERRORS:-2}"
+export PATH="${PROJECT_DIR}/home/.local/bin:${PROJECT_DIR}/src/rl-chunk-pusht/.venv/bin:${PATH}"
+EOF
+fi
 
 if command -v apt-get >/dev/null 2>&1 && [[ "$(id -u)" == "0" ]]; then
   export DEBIAN_FRONTEND=noninteractive
